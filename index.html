@@ -1,0 +1,293 @@
+<!doctype html>
+<html lang="ja">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>記念日ファインダー</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap">
+<style>
+/* Layout: 左に入力と保存した起点、右に時系列の記念日リスト。狭い幅では縦積み。数字を主役にした静かな紙面 */
+:root{
+  --bg:#eef1f5; --surface:#ffffff; --fg:#1b2333; --muted:#5d6779; --line:#d5dbe5;
+  --accent:#2f4bb8; --accent-fg:#ffffff; --soft:#e3e8f6; --danger:#c0392b; --past:#e4e8ef;
+  --font-body:"Zen Kaku Gothic New","Hiragino Sans","Yu Gothic",sans-serif;
+  --font-num:"Inter","Segoe UI",system-ui,sans-serif;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#121723; --surface:#1a2133; --fg:#e6eaf3; --muted:#9aa5ba; --line:#2d3650;
+  --accent:#8ea2ff; --accent-fg:#101530; --soft:#242d4a; --danger:#ff8a7a; --past:#222a3f; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#121723; --surface:#1a2133; --fg:#e6eaf3; --muted:#9aa5ba; --line:#2d3650;
+  --accent:#8ea2ff; --accent-fg:#101530; --soft:#242d4a; --danger:#ff8a7a; --past:#222a3f; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--font-body);font-size:15px;line-height:1.6;
+  padding-block:28px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:980px;margin:0 auto;display:grid;gap:24px}
+h1{font-size:1.6rem;margin:0;font-weight:700;letter-spacing:.02em;text-wrap:balance}
+.layout{width:100%;max-width:440px;margin:0 auto}
+header{text-align:center}
+.side{display:grid;gap:16px;min-width:0}
+form,.panel{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:18px;display:grid;gap:14px}
+label{display:grid;gap:4px;font-size:.8rem;color:var(--muted);letter-spacing:.06em}
+label span{white-space:nowrap}
+label small{font-size:.7rem;letter-spacing:0}
+form h2,.panel h2{margin:0}
+input{font:inherit;font-family:var(--font-num);color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:8px 10px;width:100%;min-width:0}
+input#nm{font-family:var(--font-body)}
+input:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.btns{display:flex;gap:8px;flex-wrap:wrap}
+button{font:inherit;font-weight:700;border:1px solid var(--accent);background:var(--accent);color:var(--accent-fg);border-radius:4px;padding:9px 16px;cursor:pointer}
+button.ghost{background:transparent;color:var(--accent)}
+.msg{font-size:.85rem;min-height:1.3em;margin:0;color:var(--muted)}
+.msg.bad{color:var(--danger)}
+.saved{display:grid;gap:8px}
+.rule{margin:0;font-size:.85rem;color:var(--muted)}
+.privacy{margin:0;font-size:.8rem;color:var(--muted);text-align:center}
+.saved h2{margin:0}
+.chip{display:flex;align-items:stretch;border:1px solid var(--line);border-radius:4px;background:var(--bg);min-width:0}
+.chip .go{flex:1;min-width:0;text-align:left;background:transparent;color:var(--fg);border:0;font-weight:500;padding:7px 10px;overflow-wrap:anywhere}
+.chip .go span{display:block;font-family:var(--font-num);font-size:.75rem;color:var(--muted);font-weight:400;font-variant-numeric:tabular-nums}
+.chip .del{background:transparent;color:var(--muted);border:0;border-left:1px solid var(--line);padding:0 12px;font-weight:400}
+.nosaved{margin:0;font-size:.82rem;color:var(--muted)}
+.summary{margin:0 0 12px;color:var(--muted);font-size:.9rem}
+.summary b{color:var(--fg);font-family:var(--font-num);font-weight:500;font-variant-numeric:tabular-nums}
+ol{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+li{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:14px 16px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 16px;align-items:baseline}
+.big{font-family:var(--font-num);font-size:1.5rem;font-weight:600;letter-spacing:-.01em;font-variant-numeric:tabular-nums}
+.big em{font-style:normal;font-family:var(--font-body);font-size:1rem;font-weight:700;margin-left:2px;color:var(--accent)}
+.when{font-family:var(--font-num);font-size:.95rem;font-variant-numeric:tabular-nums;text-align:right}
+.left{grid-column:1/-1;font-family:var(--font-num);font-size:.85rem;color:var(--muted);font-variant-numeric:tabular-nums}
+.note{background:var(--soft);border-radius:6px;padding:10px 14px;font-size:.88rem;margin:0 0 12px}
+h2{font-size:.85rem;letter-spacing:.14em;color:var(--muted);margin:22px 0 10px;font-weight:700}
+section h2:first-of-type{margin-top:0}
+.busy{color:var(--muted);font-size:.95rem;padding:18px 0}
+.busy i{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--accent);margin-left:5px;animation:bl 1s infinite}
+.busy i:nth-child(3){animation-delay:.2s}.busy i:nth-child(4){animation-delay:.4s}
+@keyframes bl{0%,100%{opacity:.2}50%{opacity:1}}
+li.in{animation:pop .32s ease-out both}
+@keyframes pop{from{opacity:0;transform:translateY(10px) scale(.98)}to{opacity:1;transform:none}}
+li.past{background:var(--past)}
+li.past .big{color:var(--muted)}
+.empty{color:var(--muted);font-size:.88rem;margin:0}
+@media (prefers-reduced-motion:reduce){li.in,.busy i{animation:none}}
+@media (max-width:480px){li{grid-template-columns:minmax(0,1fr)}.when{text-align:left}}
+</style>
+
+<div class="wrap">
+  <header><h1>🕐 記念日ファインダー</h1></header>
+  <div class="layout" id="top">
+    <div class="side">
+    <form id="f" novalidate>
+      <h2>起点とする日</h2>
+      <label for="d">年月日<input id="d" type="date" value="2000-01-01"></label>
+      <label for="t"><span>時分秒 <small>(わかる場合のみ。省くと0:00:00)</small></span><input id="t" type="time" step="1"></label>
+      <p class="rule">起点の日を0日目として計算します。</p>
+      <p class="msg" id="msg" role="status"></p>
+      <div class="btns"><button type="submit">探す</button><button type="button" class="ghost" id="clr">時分秒を消す</button></div>
+    </form>
+    <div class="panel">
+      <h2>起点をブラウザに保存</h2>
+      <label for="nm"><span>名前 <small>(任意)</small></span><input id="nm" type="text" maxlength="12" autocomplete="off"></label>
+      <div class="btns"><button type="button" id="sv">起点を保存</button></div>
+      <p class="msg" id="msg2" role="status"></p>
+      <div class="saved">
+        <h2 id="sh">保存した起点</h2>
+        <div id="chips" style="display:grid;gap:6px"></div>
+      </div>
+    </div>
+    <p class="privacy">入力した年月日や名前は、サーバーには送信されません。計算も保存も、この端末のブラウザの中だけで行います。</p>
+    </div>
+  </div>
+  <section id="res" aria-live="off" hidden>
+      <div class="btns" style="margin-bottom:16px"><button type="button" class="ghost" id="back">← 入力にもどる</button></div>
+      <p class="summary" id="sum"></p>
+      <p class="note" id="note" hidden></p>
+      <p class="busy" id="busy" hidden>記念日を探しています<i></i><i></i><i></i></p>
+      <h2 id="fh" hidden>これから (最大5件)</h2>
+      <ol id="list"></ol>
+      <h2 id="ph" hidden>これまで (最大3件)</h2>
+      <p class="empty" id="pnone" hidden>これまでの記念日はありません。</p>
+      <ol id="plist"></ol>
+      <h2 id="mh" hidden>起点から今日までの</h2>
+      <ol id="mlist"></ol>
+  </section>
+</div>
+
+<script>
+(function(){
+  var UNITS=[
+    {k:"年",min:2,max:6},{k:"月",min:2,max:7},{k:"週",min:2,max:7},
+    {k:"日",min:3,max:9},{k:"時",min:3,max:10},{k:"分",min:3,max:11},{k:"秒",min:3,max:12}
+  ];
+  function nums(U,start){
+    var set={},min=U.min,max=U.max;
+    for(var len=min;len<=max;len++){
+      for(var d=1;d<=9;d++){
+        if(!(d===6&&(U.k==="秒"||U.k==="分")))set[d*Math.pow(10,len-1)]=1;
+        if(d<9||(U.k==="年"&&len===2))set[d*(Math.pow(10,len)-1)/9]=1;
+      }
+      if(len<=10){
+        var s="";for(var i=1;i<=len;i++)s+=(i%10);
+        set[Number(s)]=1;
+      }
+    }
+    if(U.k==="秒"||U.k==="分"||U.k==="時")set[start.getFullYear()*10000+(start.getMonth()+1)*100+start.getDate()]=1;
+    return Object.keys(set).map(Number);
+  }
+  function addMonths(s,n){
+    var tot=s.getFullYear()*12+s.getMonth()+n,y=Math.floor(tot/12),m=tot-y*12;
+    var dim=new Date(2001,m+1,0).getDate();
+    var r=new Date(2000,0,1);r.setFullYear(y,m,Math.min(s.getDate(),dim));
+    r.setHours(s.getHours(),s.getMinutes(),s.getSeconds(),0);return r;
+  }
+  function shift(s,u,n){
+    if(u==="年")return addMonths(s,n*12);
+    if(u==="月")return addMonths(s,n);
+    if(u==="週"||u==="日"){var r=new Date(s.getTime());r.setDate(r.getDate()+n*(u==="週"?7:1));return r}
+    var ms={"時":3600000,"分":60000,"秒":1000}[u];
+    return new Date(s.getTime()+n*ms);
+  }
+  function find(start,now){
+    var all=[];
+    UNITS.forEach(function(U){
+      nums(U,start).forEach(function(n){
+        var t=shift(start,U.k,n);
+        if(isNaN(t.getTime()))return;
+        all.push({t:t,n:n,u:U.k});
+      });
+    });
+    all.sort(function(a,b){return a.t-b.t});
+    var lim=new Date(now.getTime());lim.setFullYear(lim.getFullYear()+3);
+    var lo=new Date(now.getTime());lo.setFullYear(lo.getFullYear()-3);
+    var fut=all.filter(function(x){return x.t>now});
+    var within=fut.filter(function(x){return x.t<=lim});
+    var past=all.filter(function(x){return x.t<=now&&x.t>=lo}).reverse().slice(0,3);
+    return {items:within.slice(0,5),past:past,next:fut[0]};
+  }
+  var W=["日","月","火","水","木","金","土"];
+  function p2(n){return (n<10?"0":"")+n}
+  function fmt(t){return t.getFullYear()+"年"+(t.getMonth()+1)+"月"+t.getDate()+"日("+W[t.getDay()]+") "+p2(t.getHours())+":"+p2(t.getMinutes())+":"+p2(t.getSeconds())}
+  function left(t,now){
+    var ago=t<now;var s=Math.floor(Math.abs(t-now)/1000),d=Math.floor(s/86400);s-=d*86400;
+    var h=Math.floor(s/3600);s-=h*3600;var m=Math.floor(s/60);s-=m*60;
+    var out=(d>0?d.toLocaleString()+"日 ":"")+h+"時間 "+m+"分 "+s+"秒";
+    return ago?out+"前":"あと "+out;
+  }
+  var $=function(i){return document.getElementById(i)};
+  function say(text,bad,id){var m=$(id||"msg");m.textContent=text||"";m.className="msg"+(bad?" bad":"")}
+
+  function readStart(){
+    var dv=$("d").value,tv=$("t").value||"00:00:00";
+    if(!dv){say("年月日を入力してください。",true);return null}
+    if(tv.length===5)tv+=":00";
+    var dp=dv.split("-").map(Number),tp=tv.split(":").map(Number);
+    var start=new Date(2000,0,1);start.setFullYear(dp[0],dp[1]-1,dp[2]);start.setHours(tp[0],tp[1],tp[2],0);
+    if(isNaN(start.getTime())){say("日付を読み取れません。",true);return null}
+    return start;
+  }
+  function run(){
+    say("");
+    var start=readStart();if(!start)return;
+    go(true);
+    try{localStorage.setItem("kinenbi",JSON.stringify({d:$("d").value,t:$("t").value}))}catch(e){}
+    var now=new Date(),r=find(start,now);
+    var el="";
+    if(start<now){
+      var y=now.getFullYear()-start.getFullYear(),m=now.getMonth()-start.getMonth(),d=now.getDate()-start.getDate();
+      if(d<0){d+=new Date(now.getFullYear(),now.getMonth(),0).getDate();m--}
+      if(m<0){m+=12;y--}
+      el="<br>("+(y>0?y+"年":"")+((y>0||m>0)?m+"ヶ月":"")+d+"日前)";
+    }
+    $("sum").innerHTML="起点 <b>"+fmt(start)+"</b>"+el;
+    var note=$("note"),items=r.items;
+    note.hidden=true;
+    if(!items.length){
+      note.hidden=false;note.textContent="3年以内に記念日はありません。次の記念日を表示します。";
+      items=r.next?[r.next]:[];
+    }
+    show(items,r.past,now,start);
+  }
+  function go(res){
+    $("top").hidden=res;$("res").hidden=!res;
+    if(res){try{if(location.hash!=="#result")location.hash="result"}catch(e){}}
+    window.scrollTo(0,0);
+  }
+  $("back").addEventListener("click",function(){
+    go(false);
+    try{if(location.hash==="#result")history.back()}catch(e){}
+  });
+  window.addEventListener("hashchange",function(){if(location.hash!=="#result")go(false)});
+  var timers=[];
+  function add(el,x,now,isPast){
+    var li=document.createElement("li");
+    if(isPast==="m"){
+      li.className="in";
+      var s=x.start,t=x.t,y=t.getFullYear()-s.getFullYear(),m=t.getMonth()-s.getMonth(),d=t.getDate()-s.getDate();
+      if(d<0){d+=new Date(t.getFullYear(),t.getMonth(),0).getDate();m--}
+      if(m<0){m+=12;y--}
+      li.innerHTML='<div><span class="big" style="font-size:1.2rem;font-family:var(--font-body)">'+x.label+'</span></div><div class="when">'+t.getFullYear()+"年"+(t.getMonth()+1)+"月"+t.getDate()+"日("+W[t.getDay()]+')</div><div class="left">起点から '+(y>0?y+"年":"")+((y>0||m>0)?m+"ヶ月":"")+d+'日目</div>';
+      el.appendChild(li);return;
+    }
+    li.className="in"+(isPast?" past":"");
+    li.innerHTML='<div><span class="big">'+x.n.toLocaleString()+"<em>"+(x.u==="時"?"時間":x.u==="月"?"ヶ月":x.u)+"</em></span></div>"+
+      '<div class="when">'+fmt(x.t)+"</div>"+
+      '<div class="left" data-t="'+x.t.getTime()+'">'+left(x.t,now)+"</div>";
+    el.appendChild(li);
+  }
+  function show(items,past,now,start){
+    timers.forEach(clearTimeout);timers=[];
+    var fl=$("list"),pl=$("plist"),ml=$("mlist"),busy=$("busy");
+    var ms=start<now?[[0.5,"中間の日"],[0.1,"10分の1の日"]].map(function(r){return {label:r[1],start:start,t:new Date(start.getTime()+(now-start)*r[0])}}):[];
+    ml.innerHTML="";$("mh").hidden=true;
+    fl.innerHTML="";pl.innerHTML="";$("fh").hidden=true;$("ph").hidden=true;$("pnone").hidden=true;busy.hidden=false;
+    var reduce=window.matchMedia&&matchMedia("(prefers-reduced-motion: reduce)").matches;
+    var wait=reduce?0:750,gap=reduce?0:120;
+    timers.push(setTimeout(function(){
+      busy.hidden=true;$("fh").hidden=false;$("ph").hidden=false;$("pnone").hidden=past.length>0;$("mh").hidden=ms.length===0;
+      var seq=items.map(function(x){return [fl,x,false]}).concat(past.map(function(x){return [pl,x,true]})).concat(ms.map(function(x){return [ml,x,"m"]}));
+      seq.forEach(function(s,i){timers.push(setTimeout(function(){add(s[0],s[1],new Date(),s[2])},i*gap))});
+    },wait));
+  }
+  setInterval(function(){
+    var now=new Date(),els=document.querySelectorAll(".left[data-t]");
+    for(var i=0;i<els.length;i++)els[i].textContent=left(new Date(Number(els[i].getAttribute("data-t"))),now);
+  },1000);
+
+  /* 保存した起点 (最大5件) */
+  var KEY="kinenbi-starts",MAX=10,mem=[];
+  function loadS(){try{var a=JSON.parse(localStorage.getItem(KEY)||"[]");return Array.isArray(a)?a.slice(0,MAX):[]}catch(e){return mem}}
+  function saveS(a){mem=a;try{localStorage.setItem(KEY,JSON.stringify(a));return true}catch(e){return false}}
+  function renderS(){
+    var a=loadS(),box=$("chips");box.innerHTML="";
+    $("sh").textContent="保存した起点 ("+a.length+"/"+MAX+")";
+    if(!a.length){var p=document.createElement("p");p.className="nosaved";p.textContent="まだありません。入力して「起点を保存」を押すと、ここに並びます。";box.appendChild(p);return}
+    a.forEach(function(s,i){
+      var c=document.createElement("div");c.className="chip";
+      var g=document.createElement("button");g.type="button";g.className="go";
+      g.textContent=s.name||"名前なし";
+      var sp=document.createElement("span");sp.textContent=s.d.replace(/-/g,"/")+" "+(s.t||"--:--:--");g.appendChild(sp);
+      g.addEventListener("click",function(){$("d").value=s.d;$("t").value=s.t||"";$("nm").value=s.name||"";say("",false,"msg2");run()});
+      var x=document.createElement("button");x.type="button";x.className="del";x.textContent="×";x.setAttribute("aria-label",(s.name||s.d)+"を削除");
+      x.addEventListener("click",function(){var b=loadS();b.splice(i,1);saveS(b);say("削除しました。",false,"msg2");renderS()});
+      c.appendChild(g);c.appendChild(x);box.appendChild(c);
+    });
+  }
+  $("sv").addEventListener("click",function(){
+    if(!$("d").value){say("保存する年月日を入力してください。",true,"msg2");return}
+    var a=loadS(),e={name:$("nm").value.trim(),d:$("d").value,t:$("t").value};
+    var idx=-1;a.forEach(function(s,i){if(s.d===e.d&&(s.t||"")===e.t)idx=i});
+    if(idx>=0)a[idx]=e;
+    else if(a.length>=MAX){say("保存は10件までです。どれか削除してください。",true,"msg2");return}
+    else a.push(e);
+    if(saveS(a))say("保存しました。",false,"msg2");else say("この環境では保存できません。このページを開いている間だけ有効です。",true,"msg2");
+    renderS();
+  });
+
+  $("f").addEventListener("submit",function(e){e.preventDefault();run()});
+  $("clr").addEventListener("click",function(){$("t").value=""});
+  try{var s=JSON.parse(localStorage.getItem("kinenbi")||"null");if(s&&s.d){$("d").value=s.d;$("t").value=s.t||""}}catch(e){}
+  renderS();
+})();
+</script>
